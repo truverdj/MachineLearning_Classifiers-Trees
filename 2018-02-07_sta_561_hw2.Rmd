@@ -71,28 +71,44 @@ gini.index = function(node){
 tree.gini = function(X, y){
   NODES = list(seq_along(y))
   full.grown = FALSE
+  escape_while = 1
+  NODE.record = NODES
+  SPLITS = list()
   while (!full.grown){
     for (current_node in NODES){
-    delta.I.record = c()
-    leaf1.record = list()
-    leaf2.record = list()
-    c = 1
+      new.nodes = list()
+      delta.I.record = c()
+      leaf1.record = list()
+      leaf2.record = list()
+      split.record = list()
+      c = 1
       for (i in 1:ncol(X)){
         for(x in unique(X[,i])){
+          split.record = append(split.record, list(c(i, x)))
           node_1 = which(X[,i] <= x)
           leaf1.record[[c]] = node_1
           I_1 = gini.index(node = y[node_1])
           node_2 = which(X[,i] > x)
           leaf2.record[[c]] = node_2
           I_2 = gini.index(node = y[node_2])
-          delta.I = gini.index(current_node) - sum(length(node_1)/length(current_node)*I_1,
+          delta.I = gini.index(y[current_node]) - sum(length(node_1)/length(current_node)*I_1,
                                                    length(node_2)/length(current_node)*I_2)
           delta.I.record = c(delta.I.record, delta.I)
           c = c + 1
         }
-      }  
+      }
+      optimal = which.min(delta.I.record)
+      new.nodes = append(new.nodes, 
+                         list(leaf1.record[[optimal]], leaf2.record[[optimal]]))
+      SPLITS = append(SPLITS, split.record[[optimal]])
     }
-  }  
+    escape_while = escape_while + 1
+    NODES = new.nodes
+    NODE.record = append(NODE.record, NODES)
+    full.grown = escape_while > 2
+  }
+  return("nodes" = NODE.record, "splits" = SPLITS)
 }
+res.tree = tree.gini(X_b, Y)
 ```
 
