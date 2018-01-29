@@ -1,0 +1,90 @@
+---
+title: "STA 561 HW2 (Decision Trees)"
+author: "Daniel Truver"
+date: "1/29/2018"
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+##### (1) Classifiers for Basketball Courts  
+
+```{r Perceptron}
+perceptron = function(X, y, I){
+  iteration = 1
+  w = rep(0, ncol(X))
+  for (j in 1:I){
+    for (i in seq_along(y)){
+      if (y[i]*(w %*% X[i,]) <= 0){
+        w = w + y[i]*X[i,] # update step
+        iteration = iteration + 1
+      }
+    }
+    accuracy = sum((X %*% w) * y > 0)/length(y) # calculate propotion of correctly classified point
+    if (accuracy == 1){ 
+      break # no need to continue if we have perfect separation
+    } 
+  }
+  return(list("iteration" = iteration, "w" = w, "accuracy" = accuracy))
+}
+```
+
+(a) Let's run the perceptron because it's fun. 
+
+```{r enteringB-BallData}
+X_1 = c(.75, .85, .85, .15,.05,.05,.85)
+X_2 = c(.1,.8,.95,.1,.25,.5,.25)
+Y = c(-1, -1, 1, -1, 1, 1, -1)
+X_b = cbind(X_1, X_2)
+```
+
+```{r perceptron}
+res = perceptron(X_b, Y, I = 100)
+```
+
+The preceptron made `r res$iteration` mistakes before converging with accuracy = `r res$accuracy` (error = `r 1-res$accuracy`). See the decision boundary below. 
+
+```{r perceptronDecisionBound}
+suppressMessages(library(ggplot2))
+ggplot(data = data.frame(X_1, X_2, Y), aes(x = X_1, y = X_2)) +
+  geom_point(aes(pch = factor(Y)), size = 7) +
+  scale_shape_manual(values = c("-", "+")) +
+  geom_abline(slope = -res$w[["X_1"]]/res$w[["X_2"]], intercept = 0) +
+  ggtitle("Result of Perceptron Algorithm",
+          subtitle = "Other possible separators featured in color") +
+  geom_abline(intercept = 0, slope = 1, color = "red", lty = "dashed") + 
+  geom_abline(intercept = 0, slope = 1.05, color = "blue", lty = "dashed") +
+  theme_bw() + 
+  theme(plot.subtitle = element_text(color = "red"))
+```  
+
+(b) Growing the decision tree.
+
+```{r decisionTree}
+gini.index = function(node){
+  p = sum(node > 0)/length(node)
+  I = 2*p*(1-p)
+  return(I)
+}
+tree.gini = function(X, y){
+  NODES = list(y)
+  full.grown = FALSE
+  while (!full.grown){
+    for (current_node in NODES)
+      for (i in 1:ncol(X)){
+        for(x in unique(X[,i])){
+          node_1 = y[which(X[,i] <= x)]
+          I_1 = gini.index(node = node_1)
+          node_2 = y[which(X[,i] > x)]
+          I_2 = gini.index(node = node_2)
+          delta.I = gini.index(current_node) - sum(length(node_1)/length(current_node)*I_1,
+                                                   length(node_2)/length(current_node)*I_2)
+          
+        }
+      }  
+  }  
+}
+```
+
