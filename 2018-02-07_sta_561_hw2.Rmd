@@ -69,21 +69,29 @@ gini.index = function(node){
   return(I)
 }
 tree.gini = function(X, y){
-  NODES = list(y)
+  NODES = list(seq_along(y))
   full.grown = FALSE
   while (!full.grown){
-    for (current_node in NODES)
+    for (current_node in NODES){
+    delta.I.record = c()
+    leaf1.record = list()
+    leaf2.record = list()
+    c = 1
       for (i in 1:ncol(X)){
         for(x in unique(X[,i])){
-          node_1 = y[which(X[,i] <= x)]
-          I_1 = gini.index(node = node_1)
-          node_2 = y[which(X[,i] > x)]
-          I_2 = gini.index(node = node_2)
+          node_1 = which(X[,i] <= x)
+          leaf1.record[[c]] = node_1
+          I_1 = gini.index(node = y[node_1])
+          node_2 = which(X[,i] > x)
+          leaf2.record[[c]] = node_2
+          I_2 = gini.index(node = y[node_2])
           delta.I = gini.index(current_node) - sum(length(node_1)/length(current_node)*I_1,
                                                    length(node_2)/length(current_node)*I_2)
-          
+          delta.I.record = c(delta.I.record, delta.I)
+          c = c + 1
         }
       }  
+    }
   }  
 }
 ```
