@@ -159,14 +159,19 @@ tree_2 = grow.tree(X, Y, current_node = tree_1$leaves[[2]])
 pure_1 = length(unique(tree_2$leaves[[1]]$y)) == 1
 pure_2 = length(unique(tree_2$leaves[[2]]$y)) == 1
 split_2 = tree_2$split
+# all nodes are now pure; we should stop
 ```
+
+We can see the splits in this lovely graphic. 
 
 ```{r plottingTheTree}
 ggplot(data = data.frame(X_1, X_2, Y), aes(x = X_1, y = X_2)) +
   geom_point(aes(pch = factor(Y)), size = 7) +
   scale_shape_manual(values = c("-", "+")) +
-  geom_vline(xintercept = res.tree$splits[[2]], lty = "dotted") +
-  geom_text(aes(x = res.tree$splits[[2]]+.05, y = 0.7, label = "X_1 <= .05"))
+  geom_vline(xintercept = tree_1$split[2], lty = "dotted") +
+  geom_text(aes(x = tree_1$split[2]+.05, y = 0.7, label = "X_1 <= .05")) +
+  geom_hline(yintercept = tree_2$split[2], lty = "dotted") +
+  geom_text(aes(x = 0.5, y = tree_2$split[2]+.05, label = "X_2 > 0.80"))
 ```
 
 
