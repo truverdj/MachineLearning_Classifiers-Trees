@@ -71,7 +71,8 @@ gini.index = function(node){ # function to calculate gini Index
 X = X_b
 Y = Y
 NODE = list(c(1,2,3,4,7))
-grow.tree = function(X, Y, current_node = NULL, epsilon = 10^-6){ # split node based on gini index
+grow.tree = function(X, Y, current_node = NULL, 
+                     epsilon = 10^-6, threshold = 0.20){ # split node based on gini index
   X = data.frame(X)
   Y = data.frame(Y = Y)
   data.df = cbind(X,y)
@@ -108,43 +109,44 @@ grow.tree = function(X, Y, current_node = NULL, epsilon = 10^-6){ # split node b
   optimal = which.max(delta.I.record) # find split with greatest gini reduction
   new.nodes = list(leaf1.record[[optimal]], leaf2.record[[optimal]])
   Split = split.record[[optimal]]
-  return(list("opt" = optimal, "leaves" = new.nodes, "split" = Split))
+  return(list("opt" = delta.I.record[optimal], "leaves" = new.nodes, "split" = Split,
+              "threshold" = delta.I.record[optimal] > threshold))
 }
 ```
 
 ```{r irrelevantTesting, include=FALSE}
-for (current_node in NODES){
-  new.nodes = list()
-  SPLITS = list()
-  delta.I.record = c()
-  leaf1.record = list()
-  leaf2.record = list()
-  split.record = list()
-  c = 1
-  for (i in 1:ncol(X)){
-    split.sequence = sort(unique(X[,i][current_node]))
-    split.sequence[1] = split.sequence[1] + epsilon
-    split.sequence[length(split.sequence)] = split.sequence[length(split.sequence)] - 
-      epsilon
-    for(x in split.sequence){
-      split.record = append(split.record, list(c(i, x)))
-      node_1 = which(X[,i] <= x)
-      leaf1.record[[c]] = node_1
-      I_1 = gini.index(node = y[node_1])
-      node_2 = which(X[,i] > x)
-      leaf2.record[[c]] = node_2
-      I_2 = gini.index(node = y[node_2])
-      delta.I = gini.index(y[current_node]) - sum(length(node_1)/length(current_node)*I_1,
-                                               length(node_2)/length(current_node)*I_2)
-      delta.I.record = c(delta.I.record, delta.I)
-      c = c + 1
-    }
-  }
-  optimal = which.max(delta.I.record)
-  new.nodes = append(new.nodes, 
-                     list(leaf1.record[[optimal]], leaf2.record[[optimal]]))
-  SPLITS = append(SPLITS, split.record[[optimal]])
-}
+# for (current_node in NODES){
+#   new.nodes = list()
+#   SPLITS = list()
+#   delta.I.record = c()
+#   leaf1.record = list()
+#   leaf2.record = list()
+#   split.record = list()
+#   c = 1
+#   for (i in 1:ncol(X)){
+#     split.sequence = sort(unique(X[,i][current_node]))
+#     split.sequence[1] = split.sequence[1] + epsilon
+#     split.sequence[length(split.sequence)] = split.sequence[length(split.sequence)] - 
+#       epsilon
+#     for(x in split.sequence){
+#       split.record = append(split.record, list(c(i, x)))
+#       node_1 = which(X[,i] <= x)
+#       leaf1.record[[c]] = node_1
+#       I_1 = gini.index(node = y[node_1])
+#       node_2 = which(X[,i] > x)
+#       leaf2.record[[c]] = node_2
+#       I_2 = gini.index(node = y[node_2])
+#       delta.I = gini.index(y[current_node]) - sum(length(node_1)/length(current_node)*I_1,
+#                                                length(node_2)/length(current_node)*I_2)
+#       delta.I.record = c(delta.I.record, delta.I)
+#       c = c + 1
+#     }
+#   }
+#   optimal = which.max(delta.I.record)
+#   new.nodes = append(new.nodes, 
+#                      list(leaf1.record[[optimal]], leaf2.record[[optimal]]))
+#   SPLITS = append(SPLITS, split.record[[optimal]])
+# }
 ```
 
 The function defined above splits a single node based on the gini index. We implement it below, step by step, until we have grown a full tree.
@@ -164,15 +166,23 @@ split_2 = tree_2$split
 
 We can see the splits in this lovely graphic. 
 
-```{r plottingTheTree}
+```{r plottingTheTree, echo=FALSE}
 ggplot(data = data.frame(X_1, X_2, Y), aes(x = X_1, y = X_2)) +
   geom_point(aes(pch = factor(Y)), size = 7) +
   scale_shape_manual(values = c("-", "+")) +
   geom_vline(xintercept = tree_1$split[2], lty = "dotted") +
   geom_text(aes(x = tree_1$split[2]+.05, y = 0.7, label = "X_1 <= .05")) +
   geom_hline(yintercept = tree_2$split[2], lty = "dotted") +
-  geom_text(aes(x = 0.5, y = tree_2$split[2]+.05, label = "X_2 > 0.80"))
+  geom_text(aes(x = 0.5, y = tree_2$split[2]+.05, label = "X_2 > 0.80")) +
+  theme_bw() +
+  ggtitle("Decision Tree Splits on Basketball Court Data",
+          subtitle = "Equal Accuracy Decision Tree (for this dataset) in red") +
+  geom_vline(xintercept = 0.075, color = "red", lty = "dotted") +
+  geom_hline(yintercept = .825, color = "red", lty = "dotted") +
+  theme(plot.subtitle = element_text(color = "red"))
 ```
 
+The error on this tree is 0. We should note that if we set the $\Delta I$ threshold at or above $0.27$, then there are not splits in the tree; we get only one class. 
 
+(c) 
 
