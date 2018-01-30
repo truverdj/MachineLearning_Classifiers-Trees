@@ -75,8 +75,8 @@ tree.gini = function(X, y){
   NODE.record = NODES
   SPLITS = list()
   while (!full.grown){
+    new.nodes = list()
     for (current_node in NODES){
-      new.nodes = list()
       delta.I.record = c()
       leaf1.record = list()
       leaf2.record = list()
@@ -97,18 +97,26 @@ tree.gini = function(X, y){
           c = c + 1
         }
       }
-      optimal = which.min(delta.I.record)
+      optimal = which.max(delta.I.record)
       new.nodes = append(new.nodes, 
                          list(leaf1.record[[optimal]], leaf2.record[[optimal]]))
       SPLITS = append(SPLITS, split.record[[optimal]])
     }
     escape_while = escape_while + 1
     NODES = new.nodes
-    NODE.record = append(NODE.record, NODES)
+    NODE.record = append(NODE.record, list(NODES))
     full.grown = escape_while > 2
   }
-  return("nodes" = NODE.record, "splits" = SPLITS)
+  return(list("nodes" = NODE.record, "splits" = SPLITS))
 }
 res.tree = tree.gini(X_b, Y)
 ```
+
+The function defined above, which induced depression during construction, returns only a single split, pictured below. 
+
+```{r plottingTheTree}
+
+```
+
+
 
