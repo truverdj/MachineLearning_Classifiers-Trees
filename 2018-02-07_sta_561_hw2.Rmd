@@ -55,7 +55,7 @@ ggplot(data = data.frame(X_1, X_2, Y), aes(x = X_1, y = X_2)) +
   ggtitle("Result of Perceptron Algorithm",
           subtitle = "Other possible separators featured in color") +
   geom_abline(intercept = 0, slope = 1, color = "red", lty = "dashed") + 
-  geom_abline(intercept = 0, slope = 1.05, color = "blue", lty = "dashed") +
+  geom_abline(intercept = 0, slope = 1.05, color = "blue", lty = "dashed") + 
   theme_bw() + 
   theme(plot.subtitle = element_text(color = "red"))
 ```  
@@ -184,5 +184,35 @@ ggplot(data = data.frame(X_1, X_2, Y), aes(x = X_1, y = X_2)) +
 
 The error on this tree is 0. We should note that if we set the $\Delta I$ threshold at or above $0.27$, then there are not splits in the tree; we get only one class. 
 
-(c) 
+(c) If we want to minimize the expected loss, we need to minimize the area between the true boundary, $\sqrt{x_1}$ and the decision boundary $w\cdot x_1$. Therefore, we compute the following integral.  
 
+$$
+t
+$$
+
+To get the minimum, we take the derivative, set that baby equal to zero, and crank the algebra machine until we get: 
+
+$$
+\begin{aligned}
+& 0 = h'(x) = -w^{-4} + 1/2 \\
+&\implies w = 2^{1/4} = 1.189
+\end{aligned}
+$$
+
+We plot the optimal decision boundary here. 
+
+```{r plottingOptimal, echo=FALSE}
+x_1.plot = seq(0,1, length.out = 100)
+x_2.plot = sqrt(x_1.plot)
+ggplot(data = data.frame(X_1, X_2, Y), aes(x = X_1, y = X_2)) +
+  geom_point(aes(pch = factor(Y)), size = 7) +
+  scale_shape_manual(values = c("-", "+")) +
+  geom_abline(slope = 1.414, intercept = 0) + 
+  geom_line(data = data.frame(x_1.plot, x_2.plot), aes(x = x_1.plot, y = x_2.plot),
+            lty = "dotted")+
+  theme_bw() +
+  ggtitle("Optimal Linear Classifier",
+          subtitle = "Our perceptron decision boundary in red") +
+  xlim(0,1) +
+  ylim(0,1)
+```
