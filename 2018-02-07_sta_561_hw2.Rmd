@@ -31,7 +31,7 @@ perceptron = function(X, y, I){
 }
 ```
 
-(a) Let's run the perceptron because it's fun. 
+###### (a) Let's run the perceptron because it's fun. 
 
 ```{r enteringB-BallData}
 X_1 = c(.75, .85, .85, .15,.05,.05,.85)
@@ -60,7 +60,7 @@ ggplot(data = data.frame(X_1, X_2, Y), aes(x = X_1, y = X_2)) +
   theme(plot.subtitle = element_text(color = "red"))
 ```  
 
-(b) Growing the decision tree.
+###### (b) Growing the decision tree.
 
 ```{r testGrow}
 gini.index = function(node){ # function to calculate gini Index
@@ -184,18 +184,25 @@ ggplot(data = data.frame(X_1, X_2, Y), aes(x = X_1, y = X_2)) +
 
 The error on this tree is 0. We should note that if we set the $\Delta I$ threshold at or above $0.27$, then there are not splits in the tree; we get only one class. 
 
-(c) If we want to minimize the expected loss, we need to minimize the area between the true boundary, $\sqrt{x_1}$ and the decision boundary $w\cdot x_1$. Therefore, we compute the following integral.  
+###### (c) The optimal linear classfier
+
+If we want to minimize the expected loss, we need to minimize the area between the true boundary, $\sqrt{x_1}$ and the decision boundary $w\cdot x_1$. Therefore, we compute the following integral.  
 
 $$
-t
+\begin{aligned}
+h(w) 
+&= \int_0^1\min(|\sqrt{x_1} - wx|, 1-\sqrt{x_1})dx_1 \\
+&= \int_0^{1/w^2} (\sqrt{x_1}-wx_1)dx_1 + \int_{1/w^2}^{1/w}(wx_1-\sqrt{x_1})dx_1 + \int_{1/w}^1(1-\sqrt{x_1})dx_1 \\
+&= \frac{1}{3}w^{-3} - \frac{1}{2}w^{-1} + \frac{1}{3}
+\end{aligned}
 $$
 
 To get the minimum, we take the derivative, set that baby equal to zero, and crank the algebra machine until we get: 
 
 $$
 \begin{aligned}
-& 0 = h'(x) = -w^{-4} + 1/2 \\
-&\implies w = 2^{1/4} = 1.189
+& 0 = h'(w) = -w^{-4} + \frac{1}{2}w^{-2} \\
+&\implies w = 2^{1/2} = 1.414
 \end{aligned}
 $$
 
@@ -218,3 +225,9 @@ ggplot(data = data.frame(X_1, X_2, Y), aes(x = X_1, y = X_2)) +
   xlim(0,1) +
   ylim(0,1)
 ```
+
+We note that this classifier has lower accuracy in than the perceptron separator we found in a previous part. This is not surprising; the optimal classifier is the one that should perform best on average over a set of datasets, whereas our perceptron trained on one dataset specifically.  
+
+###### (d) The optimal decision tree
+
+
