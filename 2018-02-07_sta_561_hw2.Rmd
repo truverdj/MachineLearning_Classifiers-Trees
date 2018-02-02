@@ -230,4 +230,55 @@ We note that this classifier has lower accuracy in than the perceptron separator
 
 ###### (d) The optimal decision tree
 
+The general idea behind our approach here is the same as in optimizing the linear classifier. Since we are assuming the location of shots to be uniformly distributed, we want to minimize the misclassified area of the court. We begin with a visulalization. A general decision tree that splits on $X_1$ and then $X_2$ looks something like this. 
 
+```{r generalDecisionTree, echo=FALSE}
+#points for tree boundaries 
+S1 = data.frame(x_1 = c(.5,.5), x_2 = c(0,1))
+S2 = data.frame(x_1 = c(0,.5), x_2 = c(.5,.5))
+S3 = data.frame(x_1 = c(.5,1), x_2 = c(.875,.875))
+ggplot(data = data.frame(x_1.plot, x_2.plot), aes(x = x_1.plot, y = x_2.plot)) +
+  geom_line() +
+  geom_line(data = S1, aes(x_1, x_2), lty = "dashed") +
+  geom_line(data = S2, aes(x_1, x_2), lty = "dashed") +
+  geom_line(data = S3, aes(x_1, x_2), lty = "dashed") +
+  geom_text(data = data.frame(x = c(.25,.25,.75,.75), y = c(.25,.75,.5,.95)),
+            aes(x = x, y = y, label = c("-","+","-","+")), size = 16) +
+  geom_text(data = data.frame(x = c(.05,.42,.57,.95), y =c(.375,.55,.8,.92)),
+            aes(x=x, y =y, label = "PROBLEM")) +
+  theme_bw()
+```
+
+Here, $s_1$ is the $x_1$ intercept of the vertical split, and $s_2, s_3$ are the $x_2$ intercepts of the left and right horizontal splits, respectively. Classification of each region is given by the obnoxiously large positive and negative signs. The ares that would be misclassified have a large 'PROBLEM' label. 
+
+We can calculate this area as follows:
+$$
+\begin{aligned}
+h(s_1, s_2, s_3) 
+&= \int_0^{s_1} |\sqrt{x_1} - s_2|dx_1 + \int_{s_1}^1 |\sqrt{x_1}-s_3|dx_1 \\
+&= \int_0^{s_2^2}(s_2 - \sqrt{x_1})dx_1 + \int_{s_2^2}^{s_1}(\sqrt{x_1}-s_2)dx_1 \\
+&\quad\quad +\int_{s_1}^{s_3^2}(s_3 - \sqrt{x_1})dx_1 + \int_{s_3^2}^1(\sqrt{x_1}-s_3)dx_1 \\
+&= \text{...some calculus later...} \\
+&= \frac{2}{3}s_2^3 + \frac{2}{3}s_3^3 + \frac{4}{3}s_1^{3/2} - s_2s_1 -s_3s_1 -s_3 + \frac{2}{3}
+\end{aligned}
+$$
+
+```{r exhaustiveMinimization}
+s1 = seq(0,1, length.out = 100)
+s2 = seq(0,1, length.out = 100)
+s3 = seq(0,1, length.out = 100)
+split.exhaustive = matrix(NA, nrow = 100^3, ncol = 4)
+i = 1
+for (x in s1){
+  for (y in s2){
+    for (z in s3){
+      split.exhaustive[i, 1] = x
+      split.exhaustive[i, 2] = y
+      split.exhaustive[i, 3] = z
+      split.exhaustive[i, 4] = (2/3)*y^3 + (2/3)*z^3 + (4/3)*x^(3/2) -y*x -z*x - z + 2/3
+      i = i + 1
+    }
+  }
+}
+minimum = which.min(split.exhaustive[,4])
+```
