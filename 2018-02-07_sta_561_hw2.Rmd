@@ -210,6 +210,8 @@ ggplot(data = data.frame(X_1, X_2, Y), aes(x = X_1, y = X_2)) +
   geom_abline(slope = 1.414, intercept = 0) + 
   geom_line(data = data.frame(x_1.plot, x_2.plot), aes(x = x_1.plot, y = x_2.plot),
             lty = "dotted")+
+  geom_abline(slope = -res$w[["X_1"]]/res$w[["X_2"]], intercept = 0, 
+              color = "red", lty = "dashed") +
   theme_bw() +
   ggtitle("Optimal Linear Classifier",
           subtitle = "Our perceptron decision boundary in red") +
