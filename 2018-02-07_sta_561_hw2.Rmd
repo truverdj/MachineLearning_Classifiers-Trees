@@ -11,7 +11,7 @@ output: pdf_document
 knitr::opts_chunk$set(echo = TRUE)
 ```
 
-##### (1) Classifiers for Basketball Courts  
+#### (1) Classifiers for Basketball Courts  
 
 ```{r Perceptron}
 perceptron = function(X, y, I){
@@ -33,7 +33,7 @@ perceptron = function(X, y, I){
 }
 ```
 
-###### (a) Let's run the perceptron because it's fun. 
+##### (a) Let's run the perceptron because it's fun. 
 
 ```{r enteringB-BallData}
 X_1 = c(.75, .85, .85, .15,.05,.05,.85)
@@ -62,7 +62,7 @@ ggplot(data = data.frame(X_1, X_2, Y), aes(x = X_1, y = X_2)) +
   theme(plot.subtitle = element_text(color = "red"))
 ```  
 
-###### (b) Growing the decision tree.
+##### (b) Growing the decision tree.
 
 ```{r testGrow}
 gini.index = function(node){ # function to calculate gini Index
@@ -150,7 +150,7 @@ ggplot(data = data.frame(X_1, X_2, Y), aes(x = X_1, y = X_2)) +
 
 The error on this tree is 0. We should note that if we set the $\Delta I$ threshold at or above $0.27$, then there are not splits in the tree; we get only one class. 
 
-###### (c) The optimal linear classfier
+##### (c) The optimal linear classfier
 
 If we want to minimize the expected loss, we need to minimize the area between the true boundary, $\sqrt{x_1}$ and the decision boundary $w\cdot x_1$. Therefore, we compute the following integral.  
 
@@ -188,14 +188,14 @@ ggplot(data = data.frame(X_1, X_2, Y), aes(x = X_1, y = X_2)) +
   theme_bw() +
   ggtitle("Optimal Linear Classifier",
           subtitle = "Our perceptron decision boundary in red") +
-  theme(plot.subtitle = element_text(color = "red"))
+  theme(plot.subtitle = element_text(color = "red")) +
   xlim(0,1) +
   ylim(0,1)
 ```
 
 We note that this classifier has lower accuracy in than the perceptron separator we found in a previous part. This is not surprising; the optimal classifier is the one that should perform best on average over a set of datasets, whereas our perceptron trained on one dataset specifically.  
 
-###### (d) The optimal decision tree
+##### (d) The optimal decision tree
 
 The general idea behind our approach here is the same as in optimizing the linear classifier. Since we are assuming the location of shots to be uniformly distributed, we want to minimize the misclassified area of the court. We begin with a visulalization. A general decision tree that splits on $X_1$ and then $X_2$ looks something like this. 
 
@@ -360,7 +360,7 @@ Once again, the accuracy is lower for the optimal loss tree on this specific exa
 
 NOTE: In the above integrals, we have assumed each time that $s_2 < s_3$. We are comfortable making this decision since moving the $s_2$ and $s_3$ lines past each other always results in more misclassified area. Namely, an arrangement such as this will have the $s_2$ or $s_3$ line intersect the $s_1$ line without intersecting the true decision boundary. This will yield an additional rectangle of misclassified area that need not exist.  
 
-###### (e) Transformations of Covariates  
+##### (e) Transformations of Covariates  
 
 Well, this one seems fairly tame after the algebra monstrosity of part (d). We know the true decision boundary to be $x_2 = \sqrt{x_1}$, so $x_2^2 = x_1$, and we consider the transformation, $t:x_2 \rightarrow x_2^2$. 
 
@@ -380,11 +380,11 @@ ggplot(data = data.frame(X_1, X_2 = X_2^2, Y), aes(X_1, X_2)) +
 
 Using the recognizing straight lines property, we deduce that the optimal classifier is the line of slope 1 passing through the origin under the transformation $t:x_2 \rightarrow x_2^2$. This classifier will always have zero error (perfect accuracy) because it is the same as the decision boundary.
 
-###### (f) Decision tree under transformation
+##### (f) Decision tree under transformation
 
 We could not obtain the same error under this transformation, especially not a depth 2 decision tree. A tree will produce a finite number of rectangular partitions of the space which are unable to capture a diagonal line. One could attempt an argument for 0 expected loss as the number of terminal nodes $c \to\infty$, but this is unrealistic.
 
-###### (h) Classifying the paint (linear)
+##### (h) Classifying the paint (linear)
 
 We will use the same integration technique as above. We consider below the line as inside the paint and above the line as outside the paint. We want to minimize the area
 $$
@@ -417,7 +417,7 @@ ggplot(data = data.frame(x = c(.5,.5,1), y =c(0,.25,.25) ), aes(x,y)) +
 
 The 'true risk' of this classfier is `r round(trueRisk, 2)`.
 
-###### (i) Classifying the paint (tree)
+##### (i) Classifying the paint (tree)
 
 Fortunately, the structure of the decision tree decision boundary makes this obvious.  
 
@@ -453,7 +453,7 @@ The error is clearly 0.
 
 ******
 
-##### (2) Variable Importance for Trees and Forests  
+#### (2) Variable Importance for Trees and Forests  
 
 
 
