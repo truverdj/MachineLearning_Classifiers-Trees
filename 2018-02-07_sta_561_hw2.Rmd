@@ -412,7 +412,8 @@ ggplot(data = data.frame(x = c(.5,.5,1), y =c(0,.25,.25) ), aes(x,y)) +
   geom_abline(intercept = 0, slope = sqrt(1/12)) +
   theme_bw() +
   ggtitle("Optimal Linear Classifier for the Paint",
-          "Below line classified as +1")
+          "Below line classified as +1") +
+  ylab("x_2") + xlab("x_1")
 ``` 
 
 The 'true risk' of this classfier is `r round(trueRisk, 2)`.
@@ -446,7 +447,8 @@ ggplot(data = data.frame(x = c(.5,.5,1), y =c(0,.25,.25) ), aes(x,y)) +
   theme(plot.subtitle = element_text(color = "red")) +
   geom_text(aes(.75, .125, label = "(+1)"), size = 6, color = "red") +
   geom_text(aes(.75, .75, label = "(-1)"), size = 6, color = "red") +
-  geom_text(aes(.25, .5, label = "(-1)"), size = 6, color = "red")
+  geom_text(aes(.25, .5, label = "(-1)"), size = 6, color = "red") +
+  ylab("x_2") + xlab("x_1")
 ```  
 
 The error is clearly 0.
