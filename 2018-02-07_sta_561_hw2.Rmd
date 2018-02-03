@@ -77,7 +77,7 @@ grow.tree = function(X, Y, current_node = NULL,
                      epsilon = 10^-6, threshold = 0.20){ # split node based on gini index
   X = data.frame(X)
   Y = data.frame(Y = Y)
-  data.df = cbind(X,y)
+  data.df = cbind(X,Y)
   if (is.null(current_node)){
     current_node = data.df
   }
