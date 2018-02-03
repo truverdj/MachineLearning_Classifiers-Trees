@@ -2,6 +2,8 @@
 title: "STA 561 HW2 (Decision Trees)"
 author: "Daniel Truver"
 date: "1/29/2018"
+header-includes:
+  - \usepackage{amsmath}
 output: pdf_document
 ---
 
@@ -222,6 +224,7 @@ ggplot(data = data.frame(X_1, X_2, Y), aes(x = X_1, y = X_2)) +
   theme_bw() +
   ggtitle("Optimal Linear Classifier",
           subtitle = "Our perceptron decision boundary in red") +
+  theme(plot.subtitle = element_text(color = "red"))
   xlim(0,1) +
   ylim(0,1)
 ```
@@ -243,10 +246,15 @@ ggplot(data = data.frame(x_1.plot, x_2.plot), aes(x = x_1.plot, y = x_2.plot)) +
   geom_line(data = S2, aes(x_1, x_2), lty = "dashed") +
   geom_line(data = S3, aes(x_1, x_2), lty = "dashed") +
   geom_text(data = data.frame(x = c(.25,.25,.75,.75), y = c(.25,.75,.5,.95)),
-            aes(x = x, y = y, label = c("-","+","-","+")), size = 16) +
+            aes(x = x, y = y, label = c("(-)","(+)","(-)","(+)")),
+            size = 14, color = "blue") +
   geom_text(data = data.frame(x = c(.05,.42,.57,.95), y =c(.375,.55,.8,.92)),
             aes(x=x, y =y, label = "PROBLEM")) +
-  theme_bw()
+  geom_text(aes(x = -.02, y = .5, label = "s_2")) +
+  geom_text(aes(x = .5, y = 0, label = "s_1")) +
+  geom_text(aes(x = 1.02, y = .875, label = "s_3")) +
+  theme_bw() +
+  ggtitle("General flavor of decision tree split on X_1 first")
 ```
 
 Here, $s_1$ is the $x_1$ intercept of the vertical split, and $s_2, s_3$ are the $x_2$ intercepts of the left and right horizontal splits, respectively. Classification of each region is given by the obnoxiously large positive and negative signs. The ares that would be misclassified have a large 'PROBLEM' label. 
@@ -287,6 +295,7 @@ s.opt = split.exhaustive[minimum, 1:3]
 ```
 
 ```{r tableForSopt, echo=FALSE}
+rm(split.exhaustive)
 knitr::kable(data.frame(s_1 = s.opt[1], s_2 = s.opt[2], s_3 = s.opt[3]),
              caption = "Optimal Splitting Values", digits = 2)
 ```  
@@ -302,16 +311,185 @@ ggplot(data = data.frame(X_1, X_2, Y), aes(x = X_1, y = X_2)) +
   geom_line(data = data.frame(x = c(s.opt[1], 1), y = s.opt[3]), aes(x,y)) +
   ggtitle("Theoretical Optimal Decision Tree",
           subtitle = "Our grown decision tree in red") +
-  theme(plot.subtitle = element_text(color = "red")) +
   geom_vline(xintercept = tree_1$split[2], color = "red", lty = "dashed") +
   geom_line(data=data.frame(x = c(tree_1$split[2],1),y = tree_2$split[2]), 
             aes(x,y), lty = "dashed", color = "red") +
   geom_line(data = data.frame(x_1.plot, x_2.plot), aes(x_1.plot, x_2.plot),
             lty = "dotted") +
-  theme_bw()
+  theme_bw() +
+  theme(plot.subtitle = element_text(color = "red")) 
 ```
 
 Once again, we see that the accuracy is higher on our grown tree for this particular dataset. The theoretically optimal tree only has lower expected loss on average.  
+
+Now, we move on to the case of splitting on $X_2$ first. The general case looks something like this:
+
+```{r generalTree2, echo=FALSE}
+ggplot(data=data.frame(x_1.plot, x_2.plot), aes(x_1.plot, x_2.plot)) +
+  geom_line(lty = "dotted") +
+  geom_hline(yintercept = .5) +
+  geom_line(data = data.frame(x = .125, y = c(0,.5)), aes(x,y)) +
+  geom_line(data = data.frame(x = .6, y = c(.5,1)), aes(x,y)) +
+  geom_text(data = data.frame(x = c(.05,.1, .8,.8), y = c(.25,.75,.25,.75)),
+            aes(x,y, label = c("(+)","(+)", "(-)","(-)")), color = "blue", size = 10) +
+  geom_text(data = data.frame(x = c(0, .125, .6), y = c(.55, -.02, 1.02)), 
+            aes(x,y, label = c("s_1", "s_2", "s_3"))) +
+  ggtitle("General flavor of decision tree split on X_2 first") +
+  theme_bw()
+```  
+
+We will go through the same process as before to obtain an expression for the expected loss. 
+$$
+\begin{aligned}
+h(s_1, s_2, s_3)
+&= \int_0^{s_2} \sqrt{x_1}dx_1 + \int_{s_2}^{s_1^2}(s_1 - \sqrt{x_1})dx_1 + \int_{s_1}^{s_3}(\sqrt{x_1} - s_1) dx_1+ \int_{s_3}^1(1-\sqrt{x_1})dx_1\\
+&\text{...some algegra later...}\\
+&= \frac{4}{3}s_2^{3/2} + \frac{4}{3}s_3^{3/2} + \frac{1}{3}s_1^3 - s_1s_2 -s_1s_3-s_3 + \frac{1}{3}
+\end{aligned}
+$$
+
+Again, we will compute the minimum of this function with this lovely computing machine exactly as above to obtain the following values for $s_1, s_2, s_3$. 
+
+```{r exhaustiveTree2, echo=FALSE}
+split.exhaustive = matrix(NA, nrow = 100^3, ncol = 4)
+i = 1
+for (x in s1){
+  for (y in s2){
+    for (z in s3){
+      split.exhaustive[i, 1] = x
+      split.exhaustive[i, 2] = y
+      split.exhaustive[i, 3] = z
+      split.exhaustive[i, 4] = (4/3)*y^(3/2) + (4/3)*z^(3/2) + (2/3)*x^(3) -y*x -z*x - z + 1/3
+      i = i + 1
+    }
+  }
+}
+minimum = which.min(split.exhaustive[,4])
+s.opt = split.exhaustive[minimum, 1:3]
+knitr::kable(data.frame(s_1 = s.opt[1], s_2 = s.opt[2], s_3 = s.opt[3]),
+             caption = "Optimal values for tree split on X_2 first", digits = 2)
+```
+
+Visually, it looks something like this.
+
+```{r plottingOptTree2, echo=FALSE}
+ggplot(data = data.frame(X_1, X_2, Y), aes(x = X_1, y = X_2)) +
+  geom_point(aes(pch = factor(Y)), size = 7) +
+  scale_shape_manual(values = c("-","+")) +
+  geom_hline(yintercept = s.opt[1]) +
+  geom_line(data = data.frame(x = s.opt[2], y = c(0,s.opt[1])), aes(x,y)) +
+  geom_line(data = data.frame(x = s.opt[3], y = c(s.opt[1], 1)), aes(x,y)) +
+  geom_line(data = data.frame(x_1.plot, x_2.plot), aes(x_1.plot, x_2.plot),
+            lty = "dotted") +
+  ggtitle("Theoretical Optimal Decision Tree",
+          subtitle = "Our grown decision tree in red") +
+  geom_vline(xintercept = tree_1$split[2], color = "red", lty = "dashed") +
+  geom_line(data=data.frame(x = c(tree_1$split[2],1),y = tree_2$split[2]), 
+            aes(x,y), lty = "dashed", color = "red") +
+  geom_line(data = data.frame(x_1.plot, x_2.plot), aes(x_1.plot, x_2.plot),
+            lty = "dotted") +
+  theme_bw() +
+  theme(plot.subtitle = element_text(color = "red")) 
+``` 
+
+Once again, the accuracy is lower for the optimal loss tree on this specific example. We are still not troubled by this for the reasons explained above. 
+
+NOTE: In the above integrals, we have assumed each time that $s_2 < s_3$. We are comfortable making this decision since moving the $s_2$ and $s_3$ lines past each other always results in more misclassified area. Namely, an arrangement such as this will have the $s_2$ or $s_3$ line intersect the $s_1$ line without intersecting the true decision boundary. This will yield an additional rectangle of misclassified area that need not exist.  
+
+###### (e) Transformations of Covariates  
+
+Well, this one seems fairly tame after the algebra monstrosity of part (d). We know the true decision boundary to be $x_2 = \sqrt{x_1}$, so $x_2^2 = x_1$, and we consider the transformation, $t:x_2 \rightarrow x_2^2$. 
+
+```{r transformPlot, echo=FALSE}
+ggplot(data = data.frame(X_1, X_2 = X_2^2, Y), aes(X_1, X_2)) +
+  geom_point(aes(pch = factor(Y)), size = 7) +
+  scale_shape_manual(values = c("-", "+")) +
+  geom_line(data = data.frame(x_1 = x_1.plot, x_2 = x_2.plot^2), aes(x_1, x_2)) +
+  geom_abline(slope = 1, intercept = 0, color = "red", lty = "dashed", 
+              size = 1.2, alpha = .8) +
+  ggtitle("Transformation of x_2 to x_2^2",
+          subtitle = "Perfect Classifier in red") +
+  theme_bw() +
+  theme(plot.subtitle = element_text(color = "red")) +
+  xlab("t(X_2)")
+```
+
+Using the recognizing straight lines property, we deduce that the optimal classifier is the line of slope 1 passing through the origin under the transformation $t:x_2 \rightarrow x_2^2$. This classifier will always have zero error (perfect accuracy) because it is the same as the decision boundary.
+
+###### (f) Decision tree under transformation
+
+We could not obtain the same error under this transformation, especially not a depth 2 decision tree. A tree will produce a finite number of rectangular partitions of the space which are unable to capture a diagonal line. One could attempt an argument for 0 expected loss as the number of terminal nodes $c \to\infty$, but this is unrealistic.
+
+###### (h) Classifying the paint (linear)
+
+We will use the same integration technique as above. We consider below the line as inside the paint and above the line as outside the paint. We want to minimize the area
+$$
+\begin{aligned}
+h(w) 
+&= \int_0^{.5} wx_1 dx_1 + \int_{.5}^{.25/w} (.25-wx_1)dx_1 + \int_{.25/w}^{1} (wx_1 - .25)dx_1 \\
+&\text{...some algebra later...}\\
+&= \frac{1}{16}w^{-1} + \frac{1}{4}w + \frac{3}{8}
+\end{aligned}
+$$
+
+Setting $h'(w) = 0$, we get 
+$$
+w = \sqrt{\frac{1}{12}}
+$$
+
+Which looks like
+
+```{r paintLlinearPlot, echo=FALSE}
+trueRisk = (1/16)/(sqrt(1/12)) + (3/4)*sqrt(1/12) - 3/8
+ggplot(data = data.frame(x = c(.5,.5,1), y =c(0,.25,.25) ), aes(x,y)) +
+  geom_line(lty = "dotted") +
+  xlim(0,1) + 
+  ylim(0,1) +
+  geom_abline(intercept = 0, slope = sqrt(1/12)) +
+  theme_bw() +
+  ggtitle("Optimal Linear Classifier for the Paint",
+          "Below line classified as +1")
+``` 
+
+The 'true risk' of this classfier is `r round(trueRisk, 2)`.
+
+###### (i) Classifying the paint (tree)
+
+Fortunately, the structure of the decision tree decision boundary makes this obvious.  
+
+$$
+f(x_1, x_2) = 
+\begin{cases}
+-1 & x_1\leq 0.5 \\
+-1 & (x_1, x_2) \in (0.5,1] \times (0.25, 1]  \\
+1 & (x_1, x_2) \in (0.5,1] \times [0, 0.25]
+\end{cases}
+$$
+
+The decision boundary is as follows. 
+
+```{r paintTreePlot}
+ggplot(data = data.frame(x = c(.5,.5,1), y =c(0,.25,.25) ), aes(x,y)) +
+  geom_line() +
+  xlim(0,1) + 
+  ylim(0,1) + 
+  ggtitle("Paint Decision Boundary", 
+          "Optimal Tree Decision Boundary in Red") +
+  geom_vline(xintercept = 0.5, color = "red", lty = "dashed", size = 1, alpha = .65) +
+  geom_line(data = data.frame(x_1 = c(0.5, 1), x_2 = .25), aes(x_1, x_2),
+            color = "red", lty = "dashed", size = 1, alpha = .65) +
+  theme_bw() +
+  theme(plot.subtitle = element_text(color = "red")) +
+  geom_text(aes(.75, .125, label = "(+1)"), size = 6, color = "red") +
+  geom_text(aes(.75, .75, label = "(-1)"), size = 6, color = "red") +
+  geom_text(aes(.25, .5, label = "(-1)"), size = 6, color = "red")
+```  
+
+The error is clearly 0.
+
+******
+
+##### (2) Variable Importance for Trees and Forests  
 
 
 
