@@ -457,5 +457,305 @@ The error is clearly 0.
 
 #### (2) Variable Importance for Trees and Forests  
 
+Hurrah! CSV files!
+
+```{r readInData}
+train = read.csv("train.csv")
+test = read.csv("test.csv")
+```
+
+##### (a) A Single Stump  
+
+Fine, I'll write my own. It's going to be specific to this prblem though. I'll work on the generality later. The Gini Index function here will be different that question (1). It will accept data frames rather than a vector for the sake of avoiding syntax problems and maintaining sanity. 
+
+```{r growStump}
+gini.index = function(node.df){ # response should be called Y, always {0,1}
+  p = sum(node.df$Y)/nrow(node.df)
+  I = 2*p*(1-p)
+  return(I)
+}
+grow.stump = function(df, surrogate = TRUE){ # df = data frame of response AND covariates
+  N = nrow(df)
+  I_df = gini.index(df) # get the gini index value of the full data
+  predictors = names(df)[names(df) != "Y"]
+  c = 1
+  leaf1.record = NULL # new strategy for storing results 
+  leaf2.record = NULL 
+  delta.I.record = -Inf  
+  for (j in predictors){ # no need for inner loop since all covariates are binary
+    predictor.is.1 = which(df[,j] == 1)
+    predictor.is.0 = -predictor.is.1
+    leaf1 = df[predictor.is.0,]
+    leaf2 = df[predictor.is.1,]
+    class1 = 1*(sum(leaf1$Y > 0) > sum(leaf1$Y <= 0))
+    class2 = 1*(sum(leaf2$Y > 0) > sum(leaf2$Y <= 0))
+    I_1 = gini.index(leaf1)
+    I_2 = gini.index(leaf2)
+    N_1 = nrow(leaf1)
+    N_2 = nrow(leaf2)
+    delta.I = I_df - sum( (N_1/N)*I_1, (N_2/N)*I_2 )
+    if (delta.I > delta.I.record){
+      delta.I.record = delta.I
+      leaf1.record = list("leaf" = leaf1, "split" = j, "class" = class1)
+      leaf2.record = list("leaf" = leaf2, "split" = j, "class" = class2)
+    }
+  }
+  surrogateStump = NULL
+  if (surrogate){
+    j = actualBest = leaf1.record$split
+    surrogateOptions = predictors[!(predictors %in% actualBest)]
+    lambda = rep(NA, length(surrogateOptions))
+    l = 1
+    for (j.tilde in surrogateOptions){
+      p_L = nrow(leaf1.record$leaf)/N
+      p_R = nrow(leaf1.record$leaf)/N
+      p_min = min(p_L, p_R)
+      p_LL = sum(df[,j] == 0 & df[,j.tilde] == 0)/N
+      p_RR = sum(df[,j] == 1 & df[,j.tilde] == 1)/N
+      p_minmin = 1 - p_LL - p_RR
+      lambda[l] = (p_min - p_minmin)/p_min
+      l = l+1
+    }
+    bestSurrogate = surrogateOptions[which.max(lambda)]
+    surrogateSplit.1 = which(df[,bestSurrogate] == 1)
+    surrogateSplit.0 = -surrogateSplit.1
+    surrogateLeaf1 = df[surrogateSplit.0,]
+    surrogateLeaf2 = df[surrogateSplit.1,]
+    class1 = 1*(sum(surrogateLeaf1$Y > 0) > sum(surrogateLeaf1$Y <= 0))
+    class2 = 1*(sum(surrogateLeaf2$Y > 0) > sum(surrogateLeaf2$Y <= 0))
+    deltaSurrogate = I_df - sum(nrow(surrogateLeaf1)/N*gini.index(surrogateLeaf1),
+                                nrow(surrogateLeaf2)/N*gini.index(surrogateLeaf2))
+    surrogateStump = list("leaf1" = surrogateLeaf1, 
+                          "leaf2" = surrogateLeaf2,
+                          "split" = bestSurrogate,
+                          "class1" = class1, "class2" = class2,
+                          "delta" = deltaSurrogate)
+  }
+  return(list("leaf1" = leaf1.record, "leaf2" = leaf2.record, "deltaI" = delta.I.record,
+              "surrogate" = surrogateStump))
+}
+```
+
+##### (a)(i) Best and Surrogate Splits
+
+```{r firstStumps}
+stump1 = grow.stump(train)
+cat("Best split:", stump1$leaf1$split, 
+    "\n with '0' leaf predicting:", stump1$leaf1$class,
+    "\n and '1' leaf predicting:", stump1$leaf2$class)
+cat("\nSurrogate Split:", stump1$surrogate$split,
+    "\n with '0' leaf predicting:", stump1$surrogate$class1,
+    "\n and '1' leaf predicting:", stump1$surrogate$class2)
+```
+
+For predictors $(X_1,\dots,X_5)$, let $f$ denote the stump resulting from the best split and $\tilde{f}$ denote the stump resulting from the surrogate split. 
+
+$$
+f(X_1,\dots,X_5) = 
+\begin{cases}
+0 & X_1 = 0 \\
+1 & X_1 = 1
+\end{cases}\\
+\tilde{f}(X_1,\dots,X_5) = 
+\begin{cases}
+0 & X_2 = 0 \\
+1 & X_2 = 1
+\end{cases}
+$$ 
+
+##### (a)(ii) Variable Importance 
+
+Time to plug and chug. The best split is on $X_1$, and there is only one split in our stump, so we have only one value to compute, namely the importance for $X_1$. 
+
+$$
+\begin{aligned}
+\text{Imp}^T(X_1) 
+&= \Delta I(0,1,1) \\
+&= \text{reduction in Gini Index at split} \\
+&= 0.270
+\end{aligned}
+$$ 
+
+To be honest, I don't know how to interpret this number. I'm not sure what it's range is or what is considered a large value. Relative to the surrogate split, which has importance 
+
+$$
+\text{Imp}^T(X_2) = 0.106,
+$$
+
+it seems that $X_1$ is more important to the classification. How to compare these values is not immediately obvious to me. One way I have seen to compare these values is to divide them all by the magnitude of the largest, in which case we would get a 'relative' importance like so. 
+
+$$
+\hat{Imp}^T(X_1) = 1, \quad \hat{Imp}^T(X_2) = 0.393
+$$
+
+With this measure, I feel more comfortable asserting that, yes, $X_1$ is more important than $X_2$, by a factor of about 2.5.
+
+##### (a)(iii) MSE 
+
+```{r testMSE}
+library(dplyr)
+test.MSE1 = test %>%
+  mutate(yhat1 = ifelse(X1 == 0, 0, 1)) %>%
+  mutate(error1 = (yhat1 - Y)^2) %>%
+  mutate(yhat2 = ifelse(X2 == 0, 0, 1)) %>%
+  mutate(error2 = (yhat2 - Y)^2)
+MSE1 = mean(test.MSE1$error1)
+MSE2 = mean(test.MSE1$error2)
+knitr::kable(data.frame(MSE1, MSE2), col.names = c("MSE for X_1 split", "MSE for X_2 split"),
+             caption = "Test MSEfor Best (X_1) and Surrogate (X_2) Split")
+``` 
+
+#### (b) Growing a Forest (of stumps)  
+
+```{r growForest, cache=TRUE}
+n = nrow(train)
+B = 0.8 * n
+M = 1000
+K = 5
+res = data.frame(leaf0 = rep(NA, M), split = rep(NA, M), leaf1 = rep(NA, M), surrogate = rep(NA, M),
+                 delta = rep(NA, M), OOBerror = rep(NA, M), OOBperm = rep(NA, M))
+forest = list(res,
+              res,
+              res,
+              res,
+              res)
+for (k in 1:K){
+  for (m in 1:M){
+    bootstrap = sample(1:n, B, replace = TRUE)
+    df.boot = train[bootstrap,]
+    df.oob = train[-unique(bootstrap),]
+    predictors = names(df.boot)[names(df.boot) != "Y"]
+    df.boot = df.boot %>%
+      select(sample(predictors, k), Y)
+    stump = grow.stump(df = df.boot, surrogate = ifelse(k==1, FALSE, TRUE))
+    forest[[k]]$leaf0[m] = stump$leaf1$class
+    forest[[k]]$split[m] = stump$leaf1$split
+    forest[[k]]$leaf1[m] = stump$leaf2$class
+    if (k != 1){
+      forest[[k]]$surrogate[m] = stump$surrogate$split
+    }
+    forest[[k]]$delta[m] = stump$deltaI
+    df.oob = df.oob %>%
+      mutate(yhat = ifelse(.[,stump$leaf1$split] == 0, 
+                           stump$leaf1$class,
+                           stump$leaf2$class))
+    forest[[k]]$OOBerror[m] = sum(df.oob$yhat != df.oob$Y)/nrow(df.oob)
+    df.oob[,stump$leaf1$split] = sample(df.oob[,stump$leaf1$split])
+    df.oob = df.oob %>%
+      mutate(yhat = ifelse(.[,stump$leaf1$split] == 0, 
+                           stump$leaf1$class,
+                           stump$leaf2$class))
+    forest[[k]]$OOBperm[m] = sum(df.oob$yhat != df.oob$Y)/nrow(df.oob)
+  }
+}
+```
+
+Yes, the above would run faster if we did it in parallel, one core for each `k`, but it would take longer to write and debug that code than it does to run the code in its current state. User efficiency beats machine efficiency this time.  
+
+##### (b)(i) Basic Summary of Forest 
+
+Asking 'how many times was each variable the best split?' is not relevant when there are only $k=1$ choices for variables, so we omit that case here. A same triviality with with the surrogate splits for $k = 2$, but we do not omit this case.  
+
+```{r forestTable, echo=FALSE}
+bests = lapply(2:K, function(k){table(forest[[k]]$split)})
+surrogates = lapply(2:K, function(k){table(forest[[k]]$surrogate)})
+table.df = data.frame(matrix(NA, nrow = 4, ncol = 10))
+rownames(table.df) = c("k=2", "k=3", "k=4", "k=5")
+vars = c("X1", "X2", "X3", "X4", "X5")
+for (i in 1:4){
+  for (j in 1:5){
+    table.df[i, j] = bests[[i]][vars[j]]
+    table.df[i, (j+5)] = surrogates[[i]][vars[j]]
+  }
+}
+colnames(table.df) = c("X1 best", "X2 best", "X3 best", "X4 best", "X5 best",
+                       "X1 surrogate", "X2 surrogate", "X3 surrogate", "X4 surrogate", "X5 surrogate")
+table.df[is.na(table.df)] = 0
+knitr::kable(table.df, caption = "Occurences of Each Variable as Best or Surrogate Split")
+```  
 
 
+We see from the table that $X_1$ is overwhelmingly chosen to be the best variable for splitting; when all variables are available for splitting, $X_1$ appears in 100% of cases with $X_2$ always as its surrogate. This fact is significant considering that each tree is grown from a different bootstrap sample. The numbers we see here suggest that $X_1$ is the most important variable, followed by $X_2$.  
+
+##### (b)(ii) Variable Importance by OOB Error
+
+```{r oobTable, echo=FALSE}
+table.df.imp = table.df.oob = data.frame(matrix(NA, nrow = 5, ncol = 5))
+colnames(table.df.imp) = colnames(table.df.oob) = vars
+for (i in 1:5){
+  for (j in vars){
+    of.interest = forest[[i]]$split == j
+    table.df.imp[i,j] = (1/M)*sum(forest[[i]]$delta[of.interest])
+    table.df.oob[i,j] = (1/M)*sum(forest[[i]]$OOBperm[of.interest],
+                                  -forest[[i]]$OOBerror[of.interest])
+  }
+}
+rownames(table.df.imp) = rownames(table.df.oob) = c("k=1","k=2","k=3","k=4","k=5")
+knitr::kable(table.df.imp, caption = "Variable Importance by Sum of Importance Across Trees", digits = 4)
+knitr::kable(table.df.oob, caption = "Variable Importance by Out-of-Bag Error", digits = 4)
+```  
+
+
+Based on the tables we see above, $X_1$ appears to be the most important variable in every case, followed by $X_2$ in every case. 
+
+Intuitively, the impact of masking should be lower in a forest. Each tree is grown on a random subset of predictors, so a dominant predictor cannot mask the others in every tree. It will not even be an option for splitting in some trees. Therefore, the other predictors will be used for splits and their importance appears within the importance measure for the forest as whole.  
+
+##### (b)(iii) MSE in the Forest  
+
+```{r forestMSE, cache=TRUE}
+forest.vote = function(k, x.df){
+  forest = forest[[k]]
+  yhat = rep(0, nrow(x.df))
+  for (i in 1:nrow(forest)){
+    for (j in 1:nrow(x.df)){
+      var.of.interest = forest$split[i]
+      yhat.vote = ifelse(x.df[j,var.of.interest]==0,
+                         forest$leaf0[i],
+                         forest$leaf1[i])
+      yhat[j] = yhat[j] + (yhat.vote - .5)
+    }
+  }
+  final_vote = 1*(yhat > 0)
+  return(final_vote)
+}
+trees.ind.class = function(k, test.df){
+  Y = test.df$Y
+  forest = forest[[k]]
+  loss = rep(NA, nrow(forest))
+  for (i in 1:nrow(forest)){
+    error = rep(NA, nrow(test.df))
+    for (j in 1:nrow(test.df)){
+      var.of.interest = forest$split[i]
+      yhat = ifelse(test.df[j,var.of.interest]==0,
+                         forest$leaf0[i],
+                         forest$leaf1[i])
+      error[j] = (Y[j] - yhat)^2
+    }
+    loss[i] = mean(error)
+  }
+  return(mean(loss))
+}
+test.x = test[1:(ncol(test) - 1)]
+test.df = test %>%
+  mutate(yhat.vote1 = forest.vote(k = 1, test.x)) %>%
+  mutate(yhat.vote2 = forest.vote(k = 2, test.x)) %>%
+  mutate(yhat.vote3 = forest.vote(k = 3, test.x)) %>%
+  mutate(yhat.vote4 = forest.vote(k = 4, test.x)) %>%
+  mutate(yhat.vote5 = forest.vote(k = 5, test.x)) %>%
+  mutate(error1 = (Y-yhat.vote1)^2) %>%
+  mutate(error2 = (Y-yhat.vote2)^2) %>%
+  mutate(error3 = (Y-yhat.vote3)^2) %>%
+  mutate(error4 = (Y-yhat.vote4)^2) %>%
+  mutate(error5 = (Y-yhat.vote5)^2) 
+MSE.forest = data.frame(vote = rep(NA, 5), ind = rep(NA, 5))
+for (i in 1:5){
+  MSE.forest[i, "vote"] = mean(test.df[,(i+11)])
+  MSE.forest[i, "ind"] = trees.ind.class(k = i, test.df = test)
+}
+rownames(MSE.forest) = rownames(table.df.imp)
+knitr::kable(MSE.forest, col.names = c("Loss by Vote", "The Weird Loss"),
+             caption = "Comparison of Loss Measures")
+```  
+
+
+The voting method is the proper method for calculating loss since that's how random forests actually make classifications of new data. We want our estimate of loss to come from the process actually used in classification. 
