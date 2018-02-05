@@ -675,7 +675,9 @@ knitr::kable(table.df, caption = "Occurences of Each Variable as Best or Surroga
 ```  
 
 
-We see from the table that $X_1$ is overwhelmingly chosen to be the best variable for splitting; when all variables are available for splitting, $X_1$ appears in 100% of cases with $X_2$ always as its surrogate. This fact is significant considering that each tree is grown from a different bootstrap sample. The numbers we see here suggest that $X_1$ is the most important variable, followed by $X_2$.  
+We see from the table that $X_1$ is overwhelmingly chosen to be the best variable for splitting; when all variables are available for splitting, $X_1$ appears in 100% of cases with $X_2$ always as its surrogate. This fact is significant considering that each tree is grown from a different bootstrap sample. The numbers we see here suggest that $X_1$ is the most important variable, followed by $X_2$. 
+
+The effect of $K$ is obvious here. The same stump growing algorithm makes every stump, so it is likely to choose the same variable to split each time. Only when that variable is unavailable does it explore the other options fully. 
 
 ##### (b)(ii) Variable Importance by OOB Error
 
@@ -684,7 +686,7 @@ table.df.imp = table.df.oob = data.frame(matrix(NA, nrow = 5, ncol = 5))
 colnames(table.df.imp) = colnames(table.df.oob) = vars
 for (i in 1:5){
   for (j in vars){
-    of.interest = forest[[i]]$split == j
+    of.interest = forest[[i]]$split == j 
     table.df.imp[i,j] = (1/M)*sum(forest[[i]]$delta[of.interest])
     table.df.oob[i,j] = (1/M)*sum(forest[[i]]$OOBperm[of.interest],
                                   -forest[[i]]$OOBerror[of.interest])
@@ -696,7 +698,7 @@ knitr::kable(table.df.oob, caption = "Variable Importance by Out-of-Bag Error", 
 ```  
 
 
-Based on the tables we see above, $X_1$ appears to be the most important variable in every case, followed by $X_2$ in every case. 
+Based on the tables we see above, $X_1$ appears to be the most important variable in every case, followed by $X_2$. This trait is more obvious in stumps that are allowed to split on $X_1$ more often (as $K$ increases). Since the same algorithm is making the splits each time, and these are only stumps, it stands to reason that an important variable will be chosen for a split when allowed. The bootstrapping, in this case where $X_1$ is so much more important, does not make a difference.  
 
 Intuitively, the impact of masking should be lower in a forest. Each tree is grown on a random subset of predictors, so a dominant predictor cannot mask the others in every tree. It will not even be an option for splitting in some trees. Therefore, the other predictors will be used for splits and their importance appears within the importance measure for the forest as whole.  
 
@@ -759,3 +761,103 @@ knitr::kable(MSE.forest, col.names = c("Loss by Vote", "The Weird Loss"),
 
 
 The voting method is the proper method for calculating loss since that's how random forests actually make classifications of new data. We want our estimate of loss to come from the process actually used in classification. 
+
+It seems that both types of error decrease when $K$ increases. Intuitively, we understand this to mean that if the stumps are allowed to split on the most important variable more often, then they will have lower error. We must remember, however, that this can lead to overfitting, especially when we grow deeper trees. 
+
+#### (c) Another Forest
+
+```{r dannys2ndForest}
+q = seq(.4,.8, by = .1)
+n = nrow(train)
+B_n = q*n
+K = 2
+M = 1000
+res = data.frame( split = rep(NA, M), surrogate = rep(NA, M),
+                 delta = rep(NA, M), OOBerror = rep(NA, M), OOBperm = rep(NA, M))
+forest2 = list(res,
+               res,
+               res,
+               res,
+               res)
+k = 1
+for (B in B_n){
+  for (m in 1:M){
+    bootstrap = sample(1:n, B, replace = TRUE)
+    df.boot = train[bootstrap,]
+    df.oob = train[-unique(bootstrap),]
+    predictors = names(df.boot)[names(df.boot) != "Y"]
+    df.boot = df.boot %>%
+      select(sample(predictors, K), Y)
+    stump = grow.stump(df = df.boot, surrogate = TRUE)
+    # forest2[[k]]$leaf0[m] = stump$leaf1$class
+    forest2[[k]]$split[m] = stump$leaf1$split
+    # forest2[[k]]$leaf1[m] = stump$leaf2$class
+    forest2[[k]]$surrogate[m] = stump$surrogate$split
+    forest2[[k]]$delta[m] = stump$deltaI
+    df.oob = df.oob %>%
+      mutate(yhat = ifelse(.[,stump$leaf1$split] == 0, 
+                           stump$leaf1$class,
+                           stump$leaf2$class))
+    forest2[[k]]$OOBerror[m] = sum(df.oob$yhat != df.oob$Y)/nrow(df.oob)
+    df.oob[,stump$leaf1$split] = sample(df.oob[,stump$leaf1$split])
+    df.oob = df.oob %>%
+      mutate(yhat = ifelse(.[,stump$leaf1$split] == 0, 
+                           stump$leaf1$class,
+                           stump$leaf2$class))
+    forest2[[k]]$OOBperm[m] = sum(df.oob$yhat != df.oob$Y)/nrow(df.oob)
+  }
+  k = k + 1
+}
+```
+
+##### (c)(i) Importance, Different Bootstrap Sizes
+
+```{r forestImportance2, echo=FALSE}
+table.df.imp2 = table.df.oob2 = data.frame(matrix(NA, nrow = 5, ncol = 5))
+colnames(table.df.imp2) = colnames(table.df.oob2) = vars
+for (i in 1:5){
+  for (j in vars){
+    of.interest = forest2[[i]]$split == j 
+    table.df.imp2[i,j] = (1/M)*sum(forest2[[i]]$delta[of.interest])
+    table.df.oob2[i,j] = (1/M)*sum(forest2[[i]]$OOBperm[of.interest],
+                                  -forest2[[i]]$OOBerror[of.interest])
+  }
+}
+rownames(table.df.imp2) = rownames(table.df.oob2) = c("B=0.4n","B=0.5n","B=0.6n","B=0.7n","B=0.8n")
+knitr::kable(table.df.imp2, caption = "Variable Importance by Sum of Importance Across Trees",
+             digits = 4, row.names = TRUE)
+knitr::kable(table.df.oob2, caption = "Variable Importance by Out-of-Bag Error", 
+             digits = 4, row.names = TRUE)
+```  
+
+We see here that as $B$ increases, $X_1$ remains the most important, but the magnitude of its out-of-bag 'raw importance' decreases. The other variables tend to fluctuate and many are so small in magnitude that we cannot say much about changes in their raw importance. As to why the most important variable shows this inverse correlation with bootstrap sample size, I can only speculate. Please see below for speculation.
+
+For smaller values of $B$, there is a lower probability of repeated sampling of any data point; it is closer to a sample without replacement. Essentially, the algorithm is training on a subset that is closer to the distribution of the full set, leading to lower values of $error_{OOB} (T_i, x_j)$ and therefore a larger value of $Imp_{OOB}(x_j)$ overall. 
+
+But, I look forward to hearing a correct explanation at some point. 
+
+##### (c)(ii) Standard Deviation of Importance
+
+This feels like a strange thing to calculate. 
+
+```{r stdevOfImportance, echo=FALSE}
+table.sd.imp = table.sd.oob = data.frame(matrix(NA, nrow = 5, ncol = 5))
+colnames(table.sd.imp) = colnames(table.sd.oob) = vars
+for (i in 1:5){
+  for (j in vars){
+    of.interest = forest2[[i]]$split == j 
+    table.sd.imp[i,j] = sd(forest2[[i]]$delta[of.interest])
+    table.sd.oob[i,j] = sd(forest2[[i]]$OOBperm[of.interest] - 
+                             forest2[[i]]$OOBerror[of.interest])
+  }
+}
+rownames(table.sd.imp) = rownames(table.sd.oob) = c("B=0.4n","B=0.5n","B=0.6n","B=0.7n","B=0.8n")
+knitr::kable(table.sd.imp, caption = "Standard Deviation of Variable Importance Across Trees",
+             digits = 4, row.names = TRUE)
+knitr::kable(table.sd.oob, caption = "Standard Deviation of Variable Importance by Out-of-Bag Error", 
+             digits = 4, row.names = TRUE)
+```  
+
+
+Well, this time the decreasing trend appears within the variable imprtance, rather than the OOB importance. Perhaps with more data points on which to train (B larger) there is less uncertainty about which variable is important, with regards to impurity measure that is. As for while the OOB importance shows an increase in variability as $B$ increases, well, the number of data points which fall 'out-of-bag' will be lower. With fewer data points, it makes intuitive sense that our uncertainty about the error would be higher. This fails to explain the decrease we see in $X_1$ importance standard deviation for $B = 0.8n$, but it's the best I've got right now.   
+
